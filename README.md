@@ -19,4 +19,15 @@ I chose an isolated RS-485 to TTL converter, which provides electrical isolation
 I chose an ESP8266 module because they are quite common and inexpensive. For only a slightly higher cost, one can easily port the software to work with an ESP32 module, but you don't really need the added computing power and I/O the ESP32 has, if you are just controlling the charger and displaying its parameters.
 
 ## Software
-The software is written as a C++ header and source file (`renogy_charger.cpp` and `renogy_charger.h`) that put all the registers I confirmed into a class called `RenogyCharger`
+The software is written as a C++ header and source file (`renogy_charger.cpp` and `renogy_charger.h`) that create a class called `RenogyCharger`.  Methods of reading and writing to all the registers I confirmed are provided, by passing back to a calling routine the contents of the specific Modbus message that accomplishes the desired read or write.  
+
+A `main.cpp` example program demonstrates the use of the RenogyCharger class, by configuring a Modbus client (using an ESP8266 Modbus library) and then communicating with an attached Renogy charger. Visual output is provided on a small OLED display, but is optional if you have some other way of interacting with the program. For example, a serial connection, which in the example is only used for console output, could also be used to control the main program.
+
+The demonstration program is written for the ESP8266, but it can be modified to run on an ESP32 or other microcontrollers. The RenogyCharger class itself would not need altering: the only changes needed would be in adapting to the particular Modbus library used, and in the display, if a different display is used.
+
+## Features
+The sample program successfully selects the "Custom' battery type, sets the various charging voltages and times, changes the maximum charging current, and monitors the charging progress. Registers containing the status of the IGN input on the charger and containing the temperature of the external probe have been tested and are read correctly. 
+
+Note that the Renogy App appears to only allow a limited selection of discrete charging current limits (e.g. 10A, 20A, 30A, 40A), whereas testing demonstrates that the max current register actually accepts intermediate values, giving a very fine control over the max charging current. Testing on the RBC40D1U model (40A max) charger shows that the current limit can be adjusted down to about 1.5A before the internal current-control hardware of the charger becomes unstable. Furthermore, changes written to the register take effect almost immediately, opening the possibility of having real-time control over the charging current based on an outside parameter such as incoming solar current.
+
+
