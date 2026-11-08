@@ -1,7 +1,9 @@
 /**
  * Display and Controller for Renogy 12/12/40 DCDC Charger
  * Uses OLED 128x64 monochrome display with I2C interface.
- * Four pins: GND, VCC (3.3 to 5V), SDA, SCL
+ * Power plus two pins (SDA, SCL) connect to display.
+ * Power plus two pins (Serial In, Serial Out) connect to RS-485 level shifter.
+ * Gnd plus two pins (GPInput, AnalogIn) connect to keypad. 
  * 
  * TODO:  
  * test temperature sensing with negative temps
@@ -18,7 +20,7 @@
 #include "renogy_charger.h"
 
 // Defaults and pin assignments for Modbus connection to charger, using Lolin D1-Mini
-#define MAX_MODBUS_REG_COUNT    2    // Max Number of 16-bit registers that can be requested in a single read
+#define MAX_MODBUS_REG_COUNT    2   //Max Number of 16-bit registers that can be requested in a single read
 #define PIN_MODBUS_RX           12  //Modbus Rx, data coming into ESP8266 from RS485 controller 
 #define PIN_MODBUS_TX           13  //Modbus Tx, data going out to RS485 controller
 #define PIN_MODBUS_TX_ENABLE    -1  //Unneeded for chosen RS485 controller. Can be used if controller needs an RE/DE signal.
@@ -27,155 +29,12 @@
 #define PIN_KEY_MENU    14  // Digital input pulled to GND when Menu key is pressed. Uses internal pullup.
 #define PIN_KEY_MUX     17  // Analog input (A0) is pulled to 3V3 via 4k75. It has two keys attached, one via a 4k75 R. Both keys pull to GND. 
 
-// Declarations for an SSD1306 display connected to I2C
-#define PIN_I2C_SDA     4
-#define PIN_I2C_SCL     5
-#define SCREEN_WIDTH    128 // OLED display width, in pixels
-#define SCREEN_HEIGHT   64 // OLED display height, in pixels
-#define SCREEN_RESET    -1 // no dedicated reset pin
-#define SCREEN_ADDRESS  0x3D ///< See datasheet for Address. Can be changed using jumper 0x3C / 0x3A
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, SCREEN_RESET);
 
-#define LOGO_HEIGHT   16
-#define LOGO_WIDTH    16
-static const unsigned char PROGMEM logo_bmp[] =
-{ 0b00000000, 0b11000000,
-  0b00000001, 0b11000000,
-  0b00000001, 0b11000000,
-  0b00000011, 0b11100000,
-  0b11110011, 0b11100000,
-  0b11111110, 0b11111000,
-  0b01111110, 0b11111111,
-  0b00110011, 0b10011111,
-  0b00011111, 0b11111100,
-  0b00001101, 0b01110000,
-  0b00011011, 0b10100000,
-  0b00111111, 0b11100000,
-  0b00111111, 0b11110000,
-  0b01111100, 0b11110000,
-  0b01110000, 0b01110000,
-  0b00000000, 0b00110000 };
-
-
-void testdrawchar(void) {
-  display.clearDisplay();
-
-  display.setTextSize(1);      // Normal 1:1 pixel scale
-  display.setTextColor(SSD1306_WHITE); // Draw white text
-  display.setCursor(0, 0);     // Start at top-left corner
-  display.cp437(true);         // Use full 256 char 'Code Page 437' font
-
-  // Not all the characters will fit on the display. This is normal.
-  // Library will draw what it can and the rest will be clipped.
-  for(int16_t i=0; i<256; i++) {
-    if(i == '\n') display.write(' ');
-    else          display.write(i);
-  }
-
-  display.display();
-  delay(2000);
-}
-
-void SplashScreen(void) {
-  display.clearDisplay();
-
-  display.setTextSize(2);             // Draw 2X-scale text
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(15, 7);
-  display.print(F("DingBat")); 
-  display.setCursor(15, 25);
-  display.print(F("Charger")); 
-  display.setTextSize(1);             
-  display.setCursor(35, 50);
-  display.print(F("v1.0.0")); 
-
-  display.display();
-}
-
-void testdrawbitmap(void) {
-  display.clearDisplay();
-
-  display.drawBitmap(
-    (display.width()  - LOGO_WIDTH ) / 2,
-    (display.height() - LOGO_HEIGHT) / 2,
-    logo_bmp, LOGO_WIDTH, LOGO_HEIGHT, 1);
-  display.display();
-  delay(1000);
-}
-
-float MapFloat(float xIn, float in_min, float in_max, float out_min, float out_max)
-{
-  return (xIn - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}//end MapFloat()
-
-/**
- * @brief Read and return ADC value, in volts
- * By measurement on one D1-mini ESP8266, ADC output is predicted by:
- * ADC = Voltage * 325.5 + 2.6  (r^2 = 0.9999) over range 0.9V - 2.5V.
- * ADC has 10-bit resolution, maxes out at about 3.2V input.
- * 
- * @param pinToRead 
- * @return float.  The raw ADC input converted to Volts
- */
-float ReadADCVolts( int pinToRead )
-{
-  const float offset = 2.627;
-  const float coefficient = 325.5;
-
-  unsigned int numberOfReadings = 16; //make readings over approx one cycle of 60Hz noise
-  unsigned int runningValue = 0; 
-   
-  for(unsigned int x = 0 ; x < numberOfReadings ; x++)
-  { runningValue += analogRead(pinToRead);
-    delay(1);
-  }
-  
-  return (((float)runningValue / (float)numberOfReadings - offset) / coefficient);
-
-}// end ReadADCVolts()
-
-/**
- * @brief Convert a voltage reading into desired units by applying conversion coefficients
- * The ML8511 output is 0.95 - 1.05 V (nominal 1.0V) output when shaded.
- * At 10 mW/cm^2 of 365 nm, output is 2.08 - 2.32 V (nominal 2.20V).
- * @param rawV 
- * @return float 
- */
-float Convert( float rawV )
-{
-  return MapFloat( rawV, 1.0, 2.2, 0.0, 10.0 );
-}//end Convert()
-
-#define POS_CHARGE_STATUS_X 0
-#define POS_CHARGE_STATUS_Y 0
-#define POS_MIDTOP1_X       0
-#define POS_MIDTOP2_X       65
-//#define POS_MIDTOP3_X       80
-#define POS_MIDTOP_Y        20
-#define POS_MIDBOT1_X       0
-#define POS_MIDBOT2_X       65
-#define POS_MIDBOT_Y        39
-#define POS_MENU_X          0
-#define POS_MENU_Y          48
-#define POS_BOTTOM_X        0
-#define POS_BOTTOM_Y        56
-#define ROLL_TEXT_INTERVAL_MS   2000    //interval between changing the status text field shown
-#define ROLL_TEXT_COUNT         4   //total number of status text fields to alternate between
-
-
-// Create software serial port (no hardware UART avail): RX = D6 (GPIO12), TX = D7 (GPIO13)
-//SoftwareSerial externalSerial(D6, D7);
-SoftwareSerial modbusSerial(PIN_MODBUS_RX, PIN_MODBUS_TX); 
-
-// Create a ModbusRTU client instance
-ModbusRTU modbus;
-uint16_t    masterBuffer[MAX_MODBUS_REG_COUNT]; //holds values updated by Modbus library when a query succeeds. The callback's void* points to this array.
-bool        isModbusReplyRecd = false;
-
+// Create instance of RenogyCharger
 RenogyCharger renogyCharger;
 
 
-// --------------------------------- Keypress ------------------------------------------
+// --------------------------------- Keypad ------------------------------------------
 enum class MenuMode
 {   None = 0,
     ILimit,
@@ -220,11 +79,49 @@ void IRAM_ATTR handleMenuButton()
     }
 }
 
-// --------------------------------- Display ------------------------------------------
-/*
- * @brief Formats and sends Charger's present data to display
- * Errors - 
- *  
+// --------------------------SSD1306 Display methods and defines ------------------------------------------
+#define PIN_I2C_SDA     4
+#define PIN_I2C_SCL     5
+#define SCREEN_WIDTH    128     // OLED display width, in pixels
+#define SCREEN_HEIGHT   64      // OLED display height, in pixels
+#define SCREEN_RESET    -1      // no dedicated reset pin
+#define SCREEN_ADDRESS  0x3D    ///< See datasheet for Address. Can be changed using jumper: 0x3C / 0x3A
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, SCREEN_RESET);
+
+void SplashScreen(void) {
+  display.clearDisplay();
+
+  display.setTextSize(2);             // Draw 2X-scale text
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(15, 7);
+  display.print(F("DingBat")); 
+  display.setCursor(15, 25);
+  display.print(F("Charger")); 
+  display.setTextSize(1);             
+  display.setCursor(35, 50);
+  display.print(F("v1.0.0")); 
+
+  display.display();
+}
+
+#define POS_CHARGE_STATUS_X 0
+#define POS_CHARGE_STATUS_Y 0
+#define POS_MIDTOP1_X       0
+#define POS_MIDTOP2_X       65
+#define POS_MIDTOP_Y        20
+#define POS_MIDBOT1_X       0
+#define POS_MIDBOT2_X       65
+#define POS_MIDBOT_Y        39
+#define POS_MENU_X          0
+#define POS_MENU_Y          48
+#define POS_BOTTOM_X        0
+#define POS_BOTTOM_Y        56
+#define ROLL_TEXT_INTERVAL_MS   2000    //interval between changing the status text field shown
+#define ROLL_TEXT_COUNT     4   //total number of status text fields to alternate between
+
+/**
+ * @brief Formats and sends Charger's present data to display 
  */
 void DisplayReadings()
 {   display.clearDisplay();
@@ -315,6 +212,14 @@ void DisplayReadings()
 
 // --------------------------------- Modbus ------------------------------------------
 
+// Create software serial port (no hardware UART avail): RX = D6 (GPIO12), TX = D7 (GPIO13)
+SoftwareSerial modbusSerial(PIN_MODBUS_RX, PIN_MODBUS_TX); 
+
+// Create a ModbusRTU client instance
+ModbusRTU   modbus;
+uint16_t    masterBuffer[MAX_MODBUS_REG_COUNT]; //holds values updated by Modbus library when a query succeeds. The callback's void* points to this array.
+bool        isModbusReplyRecd = false;
+
 /**
  * @brief Modbus Register-Read Callback Function
  * This function executes automatically as soon as the server responds or errors/times out.
@@ -372,7 +277,8 @@ static bool modbusWriteCallback(Modbus::ResultCode event, uint16_t transactionId
 }
 
 // --------------------------------- Setup() -------------------------------------------
-void setup() {
+void setup() 
+{
     delay(2000);           // to give time to open a serial monitor.  Not needed except for debugging
     Serial.begin(115200);  // UART0, connected to USB port as console I/O                     
     modbusSerial.begin(9600, SWSERIAL_8N1); // Initialize software-driven serial port to communicate with external RS-485 IC.                              // to give time to open a serial monitor.  Not needed except for debugging
@@ -444,9 +350,8 @@ void setup() {
   
     Serial.println("Keypress Interrupt configured.");
 
-
     delay(2000);
-}
+}//end setup()
 
 // --------------------------------- loop() ------------------------------------------
 
@@ -604,4 +509,4 @@ void loop()
 
     yield(); // Keep any ESP8266 background Wi-Fi/system tasks running
 
-}
+}//end loop()
