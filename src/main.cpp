@@ -3,14 +3,13 @@
  * Uses OLED 128x64 monochrome display with I2C interface.
  * Four pins: GND, VCC (3.3 to 5V), SDA, SCL
  * 
- * TODO:  test temperature sensing with negative temps
- *  fix Current readout - saw I limit of 3.0 indicated, but meter showed 6A.  Showed 8, meter showed 11.  Could have been problem with register
- * having A rather than 1/100A units written.
+ * TODO:  
+ * test temperature sensing with negative temps
+ * try reading multiple registers in one transaction. Would speed up certain operations. 
   *
  */
 #include <Arduino.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <Wire.h>
 #include <ModbusRTU.h>
 #include <SoftwareSerial.h>
