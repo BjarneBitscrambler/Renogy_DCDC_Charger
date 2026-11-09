@@ -271,7 +271,85 @@ bool RenogyCharger::GetNextModbusQuery( uint8_t *chargerID, uint16_t *startReg, 
             {   return false;   //couldn't find dictionary entry
             }   
             *startReg = it->reg_addr;
-            *numRegs = 1;  //TODO - can we read multiple registers and get the whole name?
+            *numRegs = 1;  
+            *function = FunctionCodes::READ_REG;
+            nextChargerState_ = ChargerState::MODEL1;    //move to this state if comms succeeds
+            revertChargerState_ = ChargerState::OFFLINE;  //move to this state if comms fail
+            break;    
+       case ChargerState::MODEL1:
+            //attempt to read model name of charger
+            *chargerID = chargerAddr_;
+            it = FindInDictionary(CID::MODEL2);
+            if( it == renogyChargerDictionary.end()) 
+            {   return false;   //couldn't find dictionary entry
+            }   
+            *startReg = it->reg_addr;
+            *numRegs = 1;  
+            *function = FunctionCodes::READ_REG;
+            nextChargerState_ = ChargerState::MODEL2;    //move to this state if comms succeeds
+            revertChargerState_ = ChargerState::OFFLINE;  //move to this state if comms fail
+            break;    
+       case ChargerState::MODEL2:
+            //attempt to read model name of charger
+            *chargerID = chargerAddr_;
+            it = FindInDictionary(CID::MODEL3);
+            if( it == renogyChargerDictionary.end()) 
+            {   return false;   //couldn't find dictionary entry
+            }   
+            *startReg = it->reg_addr;
+            *numRegs = 1;  
+            *function = FunctionCodes::READ_REG;
+            nextChargerState_ = ChargerState::MODEL3;    //move to this state if comms succeeds
+            revertChargerState_ = ChargerState::OFFLINE;  //move to this state if comms fail
+            break;    
+       case ChargerState::MODEL3:
+            //attempt to read model name of charger
+            *chargerID = chargerAddr_;
+            it = FindInDictionary(CID::MODEL4);
+            if( it == renogyChargerDictionary.end()) 
+            {   return false;   //couldn't find dictionary entry
+            }   
+            *startReg = it->reg_addr;
+            *numRegs = 1;  
+            *function = FunctionCodes::READ_REG;
+            nextChargerState_ = ChargerState::MODEL4;    //move to this state if comms succeeds
+            revertChargerState_ = ChargerState::OFFLINE;  //move to this state if comms fail
+            break;    
+       case ChargerState::MODEL4:
+            //attempt to read model name of charger
+            *chargerID = chargerAddr_;
+            it = FindInDictionary(CID::MODEL5);
+            if( it == renogyChargerDictionary.end()) 
+            {   return false;   //couldn't find dictionary entry
+            }   
+            *startReg = it->reg_addr;
+            *numRegs = 1;  
+            *function = FunctionCodes::READ_REG;
+            nextChargerState_ = ChargerState::MODEL5;    //move to this state if comms succeeds
+            revertChargerState_ = ChargerState::OFFLINE;  //move to this state if comms fail
+            break;    
+       case ChargerState::MODEL5:
+            //attempt to read model name of charger
+            *chargerID = chargerAddr_;
+            it = FindInDictionary(CID::MODEL6);
+            if( it == renogyChargerDictionary.end()) 
+            {   return false;   //couldn't find dictionary entry
+            }   
+            *startReg = it->reg_addr;
+            *numRegs = 1;  
+            *function = FunctionCodes::READ_REG;
+            nextChargerState_ = ChargerState::MODEL6;    //move to this state if comms succeeds
+            revertChargerState_ = ChargerState::OFFLINE;  //move to this state if comms fail
+            break;    
+       case ChargerState::MODEL6:
+            //attempt to read model name of charger
+            *chargerID = chargerAddr_;
+            it = FindInDictionary(CID::MODEL7);
+            if( it == renogyChargerDictionary.end()) 
+            {   return false;   //couldn't find dictionary entry
+            }   
+            *startReg = it->reg_addr;
+            *numRegs = 1;  
             *function = FunctionCodes::READ_REG;
             nextChargerState_ = ChargerState::VERIFIED1;    //move to this state if comms succeeds
             revertChargerState_ = ChargerState::OFFLINE;  //move to this state if comms fail
@@ -1037,9 +1115,44 @@ bool RenogyCharger::ProcessInfoReceived( bool success, uint16_t *data, uint16_t 
             break;
         }
         case CID::MODEL1:
-         {  if( numDataWords == 1 )
-            {   //this was a successful read
-                modelName_.asInt[0] = data[0];
+        {   if( numDataWords == 1 ) //this was a successful read
+            {   modelName_.asInt[0] = (data[0] >> 8) + (data[0] << 8);
+            }
+            break;
+        }
+        case CID::MODEL2:
+        {   if( numDataWords == 1 ) //this was a successful read
+            {   modelName_.asInt[1] = (data[0] >> 8) + (data[0] << 8);
+            }
+            break;
+        }
+        case CID::MODEL3:
+        {   if( numDataWords == 1 ) //this was a successful read
+            {   modelName_.asInt[2] = (data[0] >> 8) + (data[0] << 8);
+            }
+            break;
+        }
+        case CID::MODEL4:
+        {   if( numDataWords == 1 ) //this was a successful read
+            {   modelName_.asInt[3] = (data[0] >> 8) + (data[0] << 8);
+            }
+            break;
+        }
+        case CID::MODEL5:
+        {   if( numDataWords == 1 ) //this was a successful read
+            {   modelName_.asInt[4] = (data[0] >> 8) + (data[0] << 8);
+            }
+            break;
+        }
+        case CID::MODEL6:
+        {   if( numDataWords == 1 ) //this was a successful read
+            {   modelName_.asInt[5] = (data[0] >> 8) + (data[0] << 8);
+            }
+            break;
+        }
+        case CID::MODEL7:
+        {   if( numDataWords == 1 ) //this was a successful read
+            {   modelName_.asInt[6] = (data[0] >> 8) + (data[0] << 8);
             }
             break;
         }

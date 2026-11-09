@@ -207,7 +207,13 @@ struct RenogyChargerDictionary
 enum class ChargerState
 {   OFFLINE = 0,    //have not had communications with charger yet, or for long while
     PRESENT,        //successfully communicated with something that responds like charger
-    VERIFIED1,      //confirmed that charger is the expected model
+    MODEL1,         //Reading the model name, one register at a time (limitation of Modbus lib)
+    MODEL2,
+    MODEL3,
+    MODEL4,
+    MODEL5,
+    MODEL6,
+    VERIFIED1,      //read the charger model
     VERIFIED1b,     //battery type 'Custom' has been written
     VERIFIED2,      //confirmed 'Custom' battery type
     VERIFIED3,      //Charging Current Limit written

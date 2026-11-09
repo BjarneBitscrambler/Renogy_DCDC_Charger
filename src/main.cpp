@@ -365,13 +365,18 @@ void loop()
     static uint32_t     lastDisplayUpdate = 0;
     static bool         buttonPlus = false;
     static bool         buttonMinus = false;       
-
+    static bool         notOutput = true;
+    
     //periodically update display
     if( millis() - lastDisplayUpdate >= intervalBetweenUpdates )
     {   DisplayReadings();
         lastDisplayUpdate = millis();
     }
 
+    if( millis() > 10000 && notOutput )
+    {   Serial.println( renogyCharger.GetModelNameAsString() );
+        notOutput = false;
+    }
     //check whether we are in menu mode, and once menuTimeoutDelay elapses between button pushes, exit the menu
     if( (menuMode != MenuMode::None) && (millis() - lastMenuDebounceTime > menuTimeoutDelay) )
     {   menuMode = MenuMode::None;
@@ -486,7 +491,7 @@ void loop()
                 modbus.writeHreg(chargerID, chargerRegister, registerValue, modbusWriteCallback );
             }
             //done adjusting battery type. If no parm changes, proceed through state machine as follows 
-        }else if( (menuMode == MenuMode::None) && (millis() - lastModbusMsgTime > 70) ) //with ~12 states, rotate through them in less than 1 second
+        }else if( (menuMode == MenuMode::None) && (millis() - lastModbusMsgTime > 80) ) //with ~12 states, rotate through them in less than 1 second
         //periodically move on to the next message transaction / state, updating sequentially local data like battery voltage 
         //Skip running through the states whilst in Menu mode, as otherwise the register reads will overwrite potential local changes.      
         {   uint8_t chargerID;
