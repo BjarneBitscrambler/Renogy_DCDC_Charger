@@ -6,8 +6,7 @@
  * Gnd plus two pins (GPInput, AnalogIn) connect to keypad. 
  * 
  * TODO:  
- * test temperature sensing with negative temps
- * try reading multiple registers in one transaction. Would speed up certain operations. 
+ * try reading multiple registers in one transaction. Would speed up certain operations.
   *
  */
 #include <Arduino.h>
@@ -20,7 +19,7 @@
 #include "renogy_charger.h"
 
 // Defaults and pin assignments for Modbus connection to charger, using Lolin D1-Mini
-#define MAX_MODBUS_REG_COUNT    2   //Max Number of 16-bit registers that can be requested in a single read
+#define MAX_MODBUS_REG_COUNT    16  //Max Number of 16-bit registers that can be requested in a single read
 #define PIN_MODBUS_RX           12  //Modbus Rx, data coming into ESP8266 from RS485 controller 
 #define PIN_MODBUS_TX           13  //Modbus Tx, data going out to RS485 controller
 #define PIN_MODBUS_TX_ENABLE    -1  //Unneeded for chosen RS485 controller. Can be used if controller needs an RE/DE signal.
@@ -184,10 +183,14 @@ void DisplayReadings()
                 display.printf( "Temperature %2d C", renogyCharger.GetTemperature());
                 break;
             case 1:
-                if( renogyCharger.IsIGNHigh() )
-                {   display.print( "IGN Input High" );
+                if( millis() < 15000 )  //for first little while, show the model name
+                {   display.print( renogyCharger.GetModelNameAsString() );
                 }else
-                {   display.print( "IGN Input Low" );
+                {   if( renogyCharger.IsIGNHigh() )
+                    {   display.print( "IGN Input High" );
+                    }else
+                    {   display.print( "IGN Input Low" );
+                    }
                 }
                 break;
             case 2:
@@ -493,7 +496,7 @@ void loop()
             FunctionCodes registerOperation;
              if( renogyCharger.GetNextModbusQuery( &chargerID, &chargerRegister, &chargerNumRegs, &registerOperation, &registerValue ) )
             {   if( renogyCharger.IsAlertNew() )
-                {   //Serial.write( renogyCharger.GetCurrentAlert().data(), renogyCharger.GetCurrentAlert().size() );
+                {   Serial.write( renogyCharger.GetCurrentAlert().data(), renogyCharger.GetCurrentAlert().size() );
                 }
                 if( registerOperation == FunctionCodes::READ_REG )// Function Code 0x03: Read Holding Registers
                 {   // Parameters: Slave ID, Start Register, Data Target Buffer, Quantity, Callback Function

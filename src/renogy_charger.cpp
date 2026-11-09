@@ -642,9 +642,22 @@ bool RenogyCharger::GetNextModbusQuery( uint8_t *chargerID, uint16_t *startReg, 
             *startReg = it->reg_addr;
             *numRegs = 1;  
             *function = FunctionCodes::READ_REG;
-            nextChargerState_ = ChargerState::CONFIGURED1;    //move to this state if comms succeeds
+            nextChargerState_ = ChargerState::CONFIGURED13;    //move to this state if comms succeeds
             revertChargerState_ = ChargerState::VERIFIED1;  //move to this state if comms fail
             break;               
+        case ChargerState::CONFIGURED13:
+            //check battery type (could have been changed manually on Charger's front panel)
+            *chargerID = chargerAddr_;
+            it = FindInDictionary(CID::BATTTYPE);
+            if( it == renogyChargerDictionary.end()) 
+            {   return false;   //couldn't find dictionary entry
+            }   
+            *startReg = it->reg_addr;
+            *numRegs = 1;
+            *function = FunctionCodes::READ_REG;
+            nextChargerState_ = ChargerState::CONFIGURED1;    //move to this state if comms succeeds
+            revertChargerState_ = ChargerState::VERIFIED1;  //move to this state if comms fail
+            break;    
         default:    
             return false;
             break;
@@ -1024,10 +1037,7 @@ bool RenogyCharger::ProcessInfoReceived( bool success, uint16_t *data, uint16_t 
             break;
         }
         case CID::MODEL1:
-        {   //distinguish between register reads and write by numDataWords in response
-            if( numDataWords == 0 )
-            {   //this was a write - no action needed
-            }else if( numDataWords == 1 )
+         {  if( numDataWords == 1 )
             {   //this was a successful read
                 modelName_.asInt[0] = data[0];
             }
@@ -1082,23 +1092,6 @@ bool RenogyCharger::ProcessInfoReceived( bool success, uint16_t *data, uint16_t 
 }//end IsInfoReceived()
 
 /**
- * following are a bunch of Update____() functions that higher-level program calls. These start a sequence
- * of actions: formulate and send ModBus request for desired parameter; monitor for response; parse
- * the response; update the variable storing the parameter.  A series of Get____() functions allow the
- * higher level program to see the updates parameter values.
- */
-/*bool RenogyCharger::UpdateBatteryVoltage()
-{   return RequestInfo( CID::BATTV );
-}
-bool RenogyCharger::UpdateChargingCurrent()
-{   return RequestInfo( CID::INPUTI );
-}
-bool RenogyCharger::UpdateModelNumber()
-{   return RequestInfo( CID::MODEL1 );
-}
-*/
-
-/**
  * Following are Get___() functions to fetch values of parameters received from charger
  * 
  */
@@ -1133,6 +1126,18 @@ uint32_t RenogyCharger::GetTotalWattHours(void)
 uint16_t RenogyCharger::GetSessionWattHours(void)
 {   sessionWh_ = cumulativeWh_ - cumulativeWhAtSessionStart_;
     return sessionWh_;
+}
+String RenogyCharger::GetModelNameAsString(void)
+{   String msg = "Model: ";
+    for( unsigned long i = 0; i < sizeof(modelName_); i++ )
+    {   //if( modelName_.asChars[i] != 0 )
+        {   msg += modelName_.asChars[i];   
+        }//else
+        //{   break;
+        //}
+    }
+
+    return msg;   
 }
 StatusReg1 RenogyCharger::GetChargingStatusAsReg(void)
 {   if( chargerState_ == ChargerState::OFFLINE)

@@ -233,7 +233,8 @@ enum class ChargerState
     CONFIGURED9,    //Cumulative Wh high word read
     CONFIGURED10,   //Cumulative Wh low word read
     CONFIGURED11,   //Battery Temp read
-    CONFIGURED12,   //IGN Input read. Current Limit to be read, and if successful, loop back to CONFIGURED1.
+    CONFIGURED12,   //IGN Input read. 
+    CONFIGURED13,   //Current Limit read.  Battery type to read, and if successful, loop back to CONFIGURED1.
 };
 
 
@@ -256,6 +257,7 @@ class RenogyCharger
         uint16_t            GetSessionWattHours(void);
         StatusReg1          GetChargingStatusAsReg(void);
         String              GetChargingStatusAsString(void);
+        String              GetModelNameAsString(void);
         BatteryType         GetBatteryType(void);
         void                SetBatteryType(BatteryType type );
         bool                IsBatteryTypeUploaded(void);
