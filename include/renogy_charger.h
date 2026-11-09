@@ -85,7 +85,7 @@ enum class InterpretAs
     LIST,                //indicates one of several choices from list
     UINT8,
     UINT8_HIGHBYTE,      //most significant byte only, interpreted as unsigned int
-    INT8,                //least-significant 7 bits represent the value. 8th bit if set indicates negative.
+    INTS7,               //least-significant 7 bits represent the value. 8th bit if set indicates negative. Not 2s-complement!
     UINT16,
     UINT16_TENTHS,       //as a 16-bit unsigned int, expressed in 1/10s of the appropriate units
     UINT16_HUNDREDTHS,

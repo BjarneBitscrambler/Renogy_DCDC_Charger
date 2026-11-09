@@ -116,7 +116,7 @@ const std::vector <UnitsDictionary> units =
 const std::vector <RenogyChargerDictionary> renogyChargerDictionary = 
 {   { CID::SOC,      "Battery State of Charge",      0x0100, CIDType::READ_ONLY, InterpretAs::UINT8,             Units::PERCENT },
     { CID::BATTV,    "Battery Voltage",              0x0101, CIDType::READ_ONLY, InterpretAs::UINT16_TENTHS,     Units::VOLTS },
-    { CID::BATTTEMP, "Battery Temperature",          0x0103, CIDType::READ_ONLY, InterpretAs::INT8,             Units::DEGREES_C },
+    { CID::BATTTEMP, "Battery Temperature",          0x0103, CIDType::READ_ONLY, InterpretAs::INTS7,             Units::DEGREES_C },
     { CID::INPUTV,   "Input Voltage",                0x0104, CIDType::READ_ONLY, InterpretAs::UINT16_TENTHS,     Units::VOLTS },
     { CID::INPUTI,   "Input Current",                0x0105, CIDType::READ_ONLY, InterpretAs::UINT16_HUNDREDTHS, Units::AMPERES },
     { CID::INPUTP,   "Input Power",                  0x0106, CIDType::READ_ONLY, InterpretAs::UINT16,            Units::WATTS },
@@ -765,8 +765,12 @@ bool RenogyCharger::ProcessInfoReceived( bool success, uint16_t *data, uint16_t 
         }
         case CID::BATTTEMP:
         {   if( numDataWords == 1 )
-            {   int16_t temperature = (int16_t)(data[0]);   //docs say signed 7-bit value, but we see values like 1219decimal
-                temperature_ = temperature;
+            {   int16_t temperature = (int16_t)(data[0] & 0b0111'1111);
+                if( (data[0] & 0b1000'0000) == 0 )
+                {   temperature_ = temperature;
+                }else
+                {   temperature_ = - temperature;
+                }
             }
             break;
         }
