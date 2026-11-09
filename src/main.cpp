@@ -99,7 +99,7 @@ void SplashScreen(void) {
   display.print(F("Charger")); 
   display.setTextSize(1);             
   display.setCursor(35, 50);
-  display.print(F("v1.0.0")); 
+  display.print(F("v1.0.1")); 
 
   display.display();
 }
